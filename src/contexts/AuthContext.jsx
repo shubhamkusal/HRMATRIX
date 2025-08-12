@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }) => {
       name: email === 'admin@company.com' ? 'Admin User' : 'John Doe',
       role: email === 'admin@company.com' ? 'admin' : 'employee',
       department: 'Engineering',
-      avatar: 'https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://placehold.co/100x100/3b82f6/ffffff?text=JD'
+      avatar: 'https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://placehold.co/100x100/3b82f6/ffffff?text=JD'
     };
 
     setUser(mockUser);

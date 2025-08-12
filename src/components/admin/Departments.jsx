@@ -1,34 +1,132 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useData } from '../../contexts/DataContext';
 import PageHeader from '../ui/PageHeader';
 import ConfirmationDialog from '../ui/ConfirmationDialog';
-import EmptyState from '../ui/EmptyState';
+import DepartmentModal from '../ui/DepartmentModal';
+import TeamModal from '../ui/TeamModal';
 import {
   Plus,
+  Search,
+  FileText,
+  MoreHorizontal,
   Edit,
   Trash2,
   Users,
-  MapPin,
-  Mail,
-  Phone
+  Briefcase,
+  User,
 } from 'lucide-react';
 
+const DropdownMenu = ({ onEdit, onManage, onDelete }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button onClick={() => setIsOpen(!isOpen)} className="p-2 rounded-full hover:bg-gray-100">
+        <MoreHorizontal className="w-5 h-5 text-gray-500" />
+      </button>
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-10 border">
+          <button onClick={onEdit} className="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+            <Edit className="w-4 h-4 mr-2" /> Edit Department
+          </button>
+          <Link to="/admin/teams" className="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+            <Users className="w-4 h-4 mr-2" /> Manage Teams
+          </Link>
+          <button onClick={onDelete} className="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
+            <Trash2 className="w-4 h-4 mr-2" /> Delete Department
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const DepartmentCard = ({ department, onEdit, onDelete, onAddTeam }) => {
+  const { employees, teams, getEmployeeById } = useData();
+  
+  const manager = getEmployeeById(department.managerId);
+  const departmentTeams = teams.filter(t => t.departmentId === department.id);
+  const memberCount = employees.filter(e => e.departmentId === department.id).length;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col"
+    >
+      <div className="flex justify-between items-start mb-4">
+        <div className="flex items-center">
+          <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mr-4">
+            <FileText className="w-6 h-6 text-gray-500" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">{department.name}</h3>
+            <p className="text-sm text-gray-500">{departmentTeams.length} teams, {memberCount} members</p>
+          </div>
+        </div>
+        <DropdownMenu onEdit={() => onEdit(department)} onDelete={() => onDelete(department)} />
+      </div>
+
+      <div className="mb-6">
+        <p className="text-sm font-semibold text-gray-600 mb-2 flex items-center"><User className="w-4 h-4 mr-2" /> Manager</p>
+        {manager ? (
+          <div className="flex items-center bg-gray-50 p-3 rounded-lg">
+            <img src={manager.avatar} alt={manager.name} className="w-10 h-10 rounded-full" />
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-900">{manager.name}</p>
+              <p className="text-xs text-gray-500">{manager.position}</p>
+            </div>
+          </div>
+        ) : <p className="text-sm text-gray-500">Not assigned</p>}
+      </div>
+
+      <div className="flex-grow">
+        <p className="text-sm font-semibold text-gray-600 mb-2 flex items-center"><Briefcase className="w-4 h-4 mr-2" /> Teams</p>
+        <div className="space-y-2">
+          {departmentTeams.map(team => {
+            const teamMemberCount = employees.filter(e => e.teamId === team.id).length;
+            return (
+              <div key={team.id} className="flex justify-between items-center text-sm">
+                <p className="text-gray-800">{team.name}</p>
+                <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full text-xs font-medium">{teamMemberCount} members</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <button onClick={() => onAddTeam(department.id)} className="w-full mt-6 border-2 border-dashed border-gray-300 text-gray-500 py-2 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-colors flex items-center justify-center">
+        <Plus className="w-4 h-4 mr-2" /> Add Team
+      </button>
+    </motion.div>
+  );
+};
+
 const Departments = () => {
-  const { departments, addDepartment, updateDepartment, deleteDepartment, departmentEmployeeCounts } = useData();
-  const [showModal, setShowModal] = useState(false);
+  const { departments, deleteDepartment, addDepartment, updateDepartment, addTeam } = useData();
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const [isDeptModalOpen, setIsDeptModalOpen] = useState(false);
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+  
   const [selectedDepartment, setSelectedDepartment] = useState(null);
   const [departmentToDelete, setDepartmentToDelete] = useState(null);
+  const [preselectedDeptForTeam, setPreselectedDeptForTeam] = useState(null);
+
+  const filteredDepartments = useMemo(() => departments.filter(dept => 
+    dept.name.toLowerCase().includes(searchTerm.toLowerCase())
+  ), [departments, searchTerm]);
 
   const handleEdit = (department) => {
     setSelectedDepartment(department);
-    setShowModal(true);
+    setIsDeptModalOpen(true);
   };
 
   const handleAdd = () => {
     setSelectedDepartment(null);
-    setShowModal(true);
+    setIsDeptModalOpen(true);
   };
 
   const handleDeleteClick = (department) => {
@@ -41,7 +139,7 @@ const Departments = () => {
     setDepartmentToDelete(null);
   };
 
-  const handleSave = (formData) => {
+  const handleSaveDepartment = (formData) => {
     if (selectedDepartment) {
       updateDepartment({ ...formData, id: selectedDepartment.id });
       toast.success(`Department "${formData.name}" updated successfully.`);
@@ -49,197 +147,96 @@ const Departments = () => {
       addDepartment(formData);
       toast.success(`Department "${formData.name}" created successfully.`);
     }
-    setShowModal(false);
+    setIsDeptModalOpen(false);
     setSelectedDepartment(null);
+  };
+  
+  const handleAddTeam = (departmentId) => {
+    setPreselectedDeptForTeam(departmentId);
+    setIsTeamModalOpen(true);
+  };
+
+  const handleSaveTeam = (teamData) => {
+    addTeam(teamData);
+    toast.success(`Team "${teamData.name}" created successfully.`);
+    setIsTeamModalOpen(false);
+    setPreselectedDeptForTeam(null);
   };
 
   return (
     <div className="p-6">
       <PageHeader
         title="Departments"
-        description="Manage organizational departments and teams"
+        description="Manage organizational structure, departments, and teams"
       >
-        <button
-          onClick={handleAdd}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
-        >
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search departments..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        <button onClick={handleAdd} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center">
           <Plus className="w-4 h-4 mr-2" />
-          Add Department
+          New Department
         </button>
+        <Link to="/admin/teams" className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50">
+          View All Teams
+        </Link>
       </PageHeader>
 
-      {departments.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {departments.map((department, index) => (
-            <motion.div
-              key={department.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: index * 0.1 }}
-              className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow"
-            >
-              <div className={`${department.color} p-6 text-white`}>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="text-xl font-bold mb-2">{department.name}</h3>
-                    <p className="text-sm opacity-90">{department.description}</p>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleEdit(department)}
-                      className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteClick(department)}
-                      className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-6">
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="text-center">
-                    <div className="flex items-center justify-center mb-2">
-                      <Users className="w-5 h-5 text-gray-400 mr-2" />
-                      <span className="text-2xl font-bold text-gray-900">{departmentEmployeeCounts[department.name] || 0}</span>
-                    </div>
-                    <p className="text-sm text-gray-600">Employees</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900 mb-2">{department.budget}</div>
-                    <p className="text-sm text-gray-600">Budget</p>
-                  </div>
-                </div>
-
-                <div className="border-t border-gray-100 pt-4">
-                  <h4 className="font-medium text-gray-900 mb-3">Department Manager</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Users className="w-4 h-4 mr-2" />
-                      <span>{department.manager}</span>
-                    </div>
-                    <div className="flex items-center text-sm text-gray-600">
-                      <MapPin className="w-4 h-4 mr-2" />
-                      <span>{department.location}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      ) : (
-        <EmptyState
-            title="No departments found"
-            message="Get started by adding a new department."
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredDepartments.map((department) => (
+          <DepartmentCard
+            key={department.id}
+            department={department}
+            onEdit={handleEdit}
+            onDelete={handleDeleteClick}
+            onAddTeam={handleAddTeam}
+          />
+        ))}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          onClick={handleAdd}
+          className="bg-white rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center min-h-[200px] cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
         >
-            <button
-                onClick={handleAdd}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center mx-auto"
-            >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Department
-            </button>
-        </EmptyState>
-      )}
+          <div className="text-center text-gray-500">
+            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
+              <Plus className="w-6 h-6" />
+            </div>
+            <p className="font-semibold">Add New Department</p>
+            <p className="text-sm">Expand your organizational structure</p>
+          </div>
+        </motion.div>
+      </div>
 
-      {showModal && (
-        <DepartmentModal
-          isOpen={showModal}
-          onClose={() => {
-            setShowModal(false);
-            setSelectedDepartment(null);
-          }}
-          onSave={handleSave}
-          department={selectedDepartment}
-        />
-      )}
+      <DepartmentModal
+        isOpen={isDeptModalOpen}
+        onClose={() => setIsDeptModalOpen(false)}
+        onSave={handleSaveDepartment}
+        department={selectedDepartment}
+      />
+      
+      <TeamModal
+        isOpen={isTeamModalOpen}
+        onClose={() => setIsTeamModalOpen(false)}
+        onSave={handleSaveTeam}
+        team={null} // For now, only adding new teams from this page
+        departmentId={preselectedDeptForTeam}
+      />
 
       <ConfirmationDialog
         isOpen={!!departmentToDelete}
         onClose={() => setDepartmentToDelete(null)}
         onConfirm={handleConfirmDelete}
         title="Delete Department"
-        message={`Are you sure you want to delete the "${departmentToDelete?.name}" department? This action cannot be undone.`}
+        message={`Are you sure you want to delete the "${departmentToDelete?.name}" department? All associated teams will also be removed. This action cannot be undone.`}
         confirmText="Delete"
       />
-    </div>
-  );
-};
-
-const DepartmentModal = ({ isOpen, onClose, onSave, department }) => {
-  const [formData, setFormData] = useState({
-    name: department?.name || '',
-    description: department?.description || '',
-    manager: department?.manager || '',
-    location: department?.location || '',
-    budget: department?.budget || ''
-  });
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave(formData);
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onClose} />
-        
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-          <form onSubmit={handleSubmit}>
-            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                {department ? 'Edit Department' : 'Add New Department'}
-              </h3>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Department Name</label>
-                  <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter department name" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                  <textarea rows={3} name="description" value={formData.description} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter department description" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Manager Name</label>
-                  <input type="text" name="manager" value={formData.manager} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter manager name" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                  <input type="text" name="location" value={formData.location} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter location" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Budget</label>
-                  <input type="text" name="budget" value={formData.budget} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter budget" />
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-              <button type="submit" className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
-                {department ? 'Update' : 'Create'}
-              </button>
-              <button type="button" className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm" onClick={onClose}>
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
     </div>
   );
 };

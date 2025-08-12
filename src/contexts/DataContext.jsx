@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
 import { faker } from '@faker-js/faker';
+import { startOfMonth, isWithinInterval } from 'date-fns';
 
 const DataContext = createContext();
 
@@ -19,29 +20,101 @@ const addDays = (date, days) => {
 };
 
 const generateInitialData = () => {
-  const departments = [
-    { id: '1', name: 'Engineering', description: 'Software development and technical operations', manager: 'John Smith', location: 'San Francisco, CA', budget: '$2.5M', color: 'bg-blue-500' },
-    { id: '2', name: 'Sales', description: 'Revenue generation and client acquisition', manager: 'Sarah Johnson', location: 'New York, NY', budget: '$1.8M', color: 'bg-green-500' },
-    { id: '3', name: 'Marketing', description: 'Brand development and customer engagement', manager: 'Mike Wilson', location: 'Los Angeles, CA', budget: '$1.2M', color: 'bg-purple-500' },
-    { id: '4', name: 'Human Resources', description: 'Employee relations and organizational development', manager: 'Lisa Brown', location: 'Chicago, IL', budget: '$800K', color: 'bg-orange-500' },
-    { id: '5', name: 'Finance', description: 'Financial planning and accounting operations', manager: 'David Chen', location: 'Austin, TX', budget: '$600K', color: 'bg-red-500' }
+  let departments = [
+    { id: '1', name: 'Engineering', description: 'Software development and technical operations', managerId: null },
+    { id: '2', name: 'Sales', description: 'Revenue generation and client acquisition', managerId: null },
+    { id: '3', name: 'Marketing', description: 'Brand development and customer engagement', managerId: null },
+    { id: '4', name: 'Human Resources', description: 'Employee relations and organizational development', managerId: null },
+    { id: '5', name: 'Finance', description: 'Financial planning and accounting operations', managerId: null },
+    { id: '6', name: 'Management', description: 'Executive and administrative leadership', managerId: null },
   ];
 
-  const employees = Array.from({ length: 50 }, (_, index) => {
-    const department = faker.helpers.arrayElement(departments);
-    return {
+  let teams = [
+    { id: 't1', name: 'Platform', departmentId: '1' },
+    { id: 't2', name: 'Web', departmentId: '1' },
+    { id: 't3', name: 'Enterprise', departmentId: '2' },
+    { id: 't4', name: 'SMB', departmentId: '2' },
+    { id: 't5', name: 'Demand Gen', departmentId: '3' },
+  ];
+
+  const adminUser = {
+    id: '0',
+    name: 'Admin',
+    email: 'admin@company.com',
+    phone: 'N/A',
+    departmentId: '6',
+    teamId: null,
+    position: 'System Administrator',
+    location: 'New York Office',
+    joinDate: new Date('2020-01-01').toISOString(),
+    avatar: `https://img-wrapper.vercel.app/image?url=https://i.pravatar.cc/100?u=admin`,
+    status: 'active',
+    salary: 150000,
+    employmentType: 'Full-time',
+    reportingManager: 'Admin',
+    workLocation: 'New York Office',
+    dob: new Date('1990-03-15').toISOString(),
+    gender: 'Male',
+    nationality: 'American',
+    maritalStatus: 'Married',
+    address: '-',
+    emergencyContact: { name: 'Jane Smith', phone: '+1 (555) 987-6543' },
+    employmentHistory: [{ position: 'System Administrator', department: 'Management', period: 'Jan 1, 2020 - Present' }],
+    performanceMetrics: { overall: 4.8, technical: 4.9, communication: 4.6, leadership: 4.7 },
+    leaveBalance: { annual: { used: 7, total: 25 }, sick: { used: 2, total: 10 }, personal: { used: 1, total: 5 } },
+    skills: ['JavaScript', 'React', 'Node.js', 'Python', 'AWS', 'Docker'],
+    certifications: ['AWS Certified Developer', 'Scrum Master Certified', 'React Developer Certification']
+  };
+
+  let employees = [adminUser];
+  
+  departments.forEach(dept => {
+    if (dept.name !== 'Management') {
+      const manager = {
+        id: faker.string.uuid(),
+        name: faker.person.fullName(),
+        email: faker.internet.email().toLowerCase(),
+        phone: faker.phone.number(),
+        departmentId: dept.id,
+        teamId: null,
+        position: `${dept.name} Lead`,
+        location: faker.location.city(),
+        joinDate: faker.date.past({ years: 3 }).toISOString(),
+        avatar: `https://img-wrapper.vercel.app/image?url=https://i.pravatar.cc/100?u=${faker.string.uuid()}`,
+        status: 'active',
+        salary: faker.number.int({ min: 90000, max: 180000 }),
+        employmentType: 'Full-time',
+      };
+      employees.push(manager);
+      dept.managerId = manager.id;
+    }
+  });
+  
+  for (let i = 0; i < 40; i++) {
+    const department = faker.helpers.arrayElement(departments.filter(d => d.name !== 'Management'));
+    const departmentTeams = teams.filter(t => t.departmentId === department.id);
+    const team = faker.helpers.arrayElement(departmentTeams);
+    employees.push({
       id: faker.string.uuid(),
       name: faker.person.fullName(),
       email: faker.internet.email().toLowerCase(),
       phone: faker.phone.number(),
-      department: department.name,
+      departmentId: department.id,
+      teamId: team.id,
       position: faker.person.jobTitle(),
       location: faker.location.city(),
       joinDate: faker.date.past({ years: 3 }).toISOString(),
       avatar: `https://img-wrapper.vercel.app/image?url=https://i.pravatar.cc/100?u=${faker.string.uuid()}`,
       status: faker.helpers.arrayElement(['active', 'inactive', 'on-leave']),
       salary: faker.number.int({ min: 50000, max: 150000 }),
-    };
+      employmentType: faker.helpers.arrayElement(['Full-time', 'Part-time', 'Contract']),
+    });
+  }
+
+  // Assign department names to employees for easier access
+  employees.forEach(emp => {
+    const dept = departments.find(d => d.id === emp.departmentId);
+    emp.department = dept ? dept.name : 'N/A';
   });
 
   const leaveRequests = Array.from({ length: 25 }, () => {
@@ -69,7 +142,7 @@ const generateInitialData = () => {
     { id: faker.string.uuid(), name: 'Q1 Financial Report.xlsx', type: 'Financial', size: '1.2 MB', uploadDate: faker.date.past().toISOString(), uploader: 'David Chen' },
   ];
 
-  return { employees, departments, leaveRequests, documents };
+  return { employees, departments, leaveRequests, documents, teams };
 };
 
 
@@ -79,6 +152,7 @@ export const DataProvider = ({ children }) => {
   const [departments, setDepartments] = useState(initialData.departments);
   const [leaveRequests, setLeaveRequests] = useState(initialData.leaveRequests);
   const [documents, setDocuments] = useState(initialData.documents);
+  const [teams, setTeams] = useState(initialData.teams);
 
   const getEmployeeById = useCallback((id) => employees.find(e => e.id === id), [employees]);
 
@@ -89,7 +163,18 @@ export const DataProvider = ({ children }) => {
       joinDate: new Date().toISOString(),
       avatar: `https://img-wrapper.vercel.app/image?url=https://i.pravatar.cc/100?u=${faker.string.uuid()}`,
       status: 'active',
-      salary: faker.number.int({ min: 50000, max: 150000 }),
+      workLocation: employeeData.location,
+      dob: new Date().toISOString(),
+      gender: 'N/A',
+      nationality: 'N/A',
+      maritalStatus: 'N/A',
+      address: 'N/A',
+      emergencyContact: { name: 'N/A', phone: 'N/A' },
+      employmentHistory: [],
+      performanceMetrics: { overall: 0, technical: 0, communication: 0, leadership: 0 },
+      leaveBalance: { annual: { used: 0, total: 25 }, sick: { used: 0, total: 10 }, personal: { used: 0, total: 5 } },
+      skills: [],
+      certifications: []
     };
     setEmployees(prev => [newEmployee, ...prev]);
   };
@@ -106,7 +191,6 @@ export const DataProvider = ({ children }) => {
     const newDepartment = {
       ...departmentData,
       id: faker.string.uuid(),
-      color: 'bg-gray-500'
     };
     setDepartments(prev => [newDepartment, ...prev]);
   };
@@ -117,6 +201,23 @@ export const DataProvider = ({ children }) => {
 
   const deleteDepartment = (id) => {
     setDepartments(prev => prev.filter(d => d.id !== id));
+    setTeams(prev => prev.filter(t => t.departmentId !== id));
+  };
+
+  const addTeam = (teamData) => {
+    const newTeam = {
+      ...teamData,
+      id: faker.string.uuid(),
+    };
+    setTeams(prev => [newTeam, ...prev]);
+  };
+  
+  const updateTeam = (teamData) => {
+    setTeams(prev => prev.map(t => t.id === teamData.id ? { ...t, ...teamData } : t));
+  };
+
+  const deleteTeam = (id) => {
+    setTeams(prev => prev.filter(t => t.id !== id));
   };
 
   const addLeaveRequest = (requestData, employee) => {
@@ -160,6 +261,40 @@ export const DataProvider = ({ children }) => {
     return counts;
   }, [employees, departments]);
 
+  const newHiresThisMonth = useMemo(() => {
+    const today = new Date();
+    const start = startOfMonth(today);
+    return employees.filter(emp => {
+      const joinDate = new Date(emp.joinDate);
+      return isWithinInterval(joinDate, { start, end: today });
+    }).length;
+  }, [employees]);
+
+  const employeesOnLeaveCount = useMemo(() => {
+    return employees.filter(emp => emp.status === 'on-leave').length;
+  }, [employees]);
+
+  const leaveTypeDistribution = useMemo(() => {
+    const counts = leaveRequests.reduce((acc, req) => {
+      acc[req.leaveType] = (acc[req.leaveType] || 0) + 1;
+      return acc;
+    }, {});
+    
+    const colors = {
+      'Vacation': '#3b82f6',
+      'Sick Leave': '#ef4444',
+      'Personal': '#8b5cf6',
+      'Maternity': '#ec4899',
+      'Emergency': '#f97316'
+    };
+
+    return Object.entries(counts).map(([name, value]) => ({
+      name,
+      value,
+      fill: colors[name] || '#6b7280'
+    }));
+  }, [leaveRequests]);
+
   const value = {
     employees,
     addEmployee,
@@ -177,6 +312,13 @@ export const DataProvider = ({ children }) => {
     documents,
     addDocument,
     deleteDocument,
+    newHiresThisMonth,
+    employeesOnLeaveCount,
+    leaveTypeDistribution,
+    teams,
+    addTeam,
+    updateTeam,
+    deleteTeam,
   };
 
   return (
