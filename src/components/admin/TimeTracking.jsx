@@ -44,7 +44,7 @@ const TimeTracking = () => {
     overtime: faker.number.float({ min: 0, max: 10, fractionDigits: 1 }),
     status: faker.helpers.arrayElement(['working', 'break', 'offline']),
     clockIn: faker.date.recent().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    avatar: `https://img-wrapper.vercel.app/image?url=https://placehold.co/40x40/3b82f6/ffffff?text=${faker.person.firstName().charAt(0)}`
+    avatar: `https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://placehold.co/40x40/3b82f6/ffffff?text=${faker.person.firstName().charAt(0)}`
   }));
 
   const filteredEmployees = selectedDepartment === 'all' 

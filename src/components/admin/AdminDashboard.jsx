@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useData } from '../../contexts/DataContext';
 import {
   Users,
   UserCheck,
@@ -8,32 +9,37 @@ import {
   TrendingUp,
   Calendar,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Building2
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const AdminDashboard = () => {
+  const { employees, departments, leaveRequests, departmentEmployeeCounts } = useData();
+
+  const pendingLeaveCount = leaveRequests.filter(r => r.status === 'pending').length;
+
   const stats = [
     {
       title: 'Total Employees',
-      value: '247',
-      change: '+12%',
+      value: employees.length,
+      change: '+2 this month',
       changeType: 'increase',
       icon: Users,
       color: 'bg-blue-500'
     },
     {
-      title: 'Present Today',
-      value: '201',
-      change: '81%',
-      changeType: 'neutral',
-      icon: UserCheck,
+      title: 'Departments',
+      value: departments.length,
+      change: '+1 this year',
+      changeType: 'increase',
+      icon: Building2,
       color: 'bg-green-500'
     },
     {
       title: 'Pending Leave',
-      value: '23',
-      change: '+5',
+      value: pendingLeaveCount,
+      change: '+5 new requests',
       changeType: 'increase',
       icon: Calendar,
       color: 'bg-yellow-500'
@@ -41,20 +47,18 @@ const AdminDashboard = () => {
     {
       title: 'Monthly Payroll',
       value: '$1.2M',
-      change: '+8%',
-      changeType: 'increase',
+      change: 'Estimate',
+      changeType: 'neutral',
       icon: DollarSign,
       color: 'bg-purple-500'
     }
   ];
 
-  const departmentData = [
-    { name: 'Engineering', employees: 89, color: '#3b82f6' },
-    { name: 'Sales', employees: 67, color: '#10b981' },
-    { name: 'Marketing', employees: 43, color: '#f59e0b' },
-    { name: 'HR', employees: 28, color: '#ef4444' },
-    { name: 'Finance', employees: 20, color: '#8b5cf6' }
-  ];
+  const departmentData = departments.map((dept) => ({
+    name: dept.name,
+    employees: departmentEmployeeCounts[dept.name] || 0,
+    color: dept.color.replace('bg-', '').replace('-500', '')
+  }));
 
   const attendanceData = [
     { day: 'Mon', present: 234, absent: 13 },
@@ -119,7 +123,7 @@ const AdminDashboard = () => {
                   stat.changeType === 'increase' ? 'text-green-600' : 
                   stat.changeType === 'decrease' ? 'text-red-600' : 'text-gray-600'
                 }`}>
-                  {stat.change} from last month
+                  {stat.change}
                 </p>
               </div>
               <div className={`w-12 h-12 ${stat.color} rounded-lg flex items-center justify-center`}>
@@ -150,6 +154,7 @@ const AdminDashboard = () => {
                   outerRadius={120}
                   paddingAngle={5}
                   dataKey="employees"
+                  nameKey="name"
                 >
                   {departmentData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />

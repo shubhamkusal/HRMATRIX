@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
+import { Toaster } from 'react-hot-toast';
 import {
   Users,
   Building2,
@@ -40,6 +41,7 @@ const AdminLayout = ({ children }) => {
 
   return (
     <div className="h-screen flex overflow-hidden bg-gray-100">
+      <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
       {/* Sidebar */}
       <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
@@ -60,7 +62,7 @@ const AdminLayout = ({ children }) => {
         <nav className="mt-8">
           <div className="px-4 space-y-2">
             {navigation.map((item) => {
-              const isActive = location.pathname === item.href;
+              const isActive = location.pathname === item.href || (item.href !== '/admin' && location.pathname.startsWith(item.href));
               return (
                 <Link
                   key={item.name}
